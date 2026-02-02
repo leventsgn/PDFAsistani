@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, Boolean, Text, DateTime, ForeignKey, Index
+from sqlalchemy import String, Integer, Boolean, Text, DateTime, ForeignKey, Index, LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from typing import Optional, List
@@ -11,7 +11,8 @@ class Document(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     filename: Mapped[str] = mapped_column(String(512), nullable=False)
-    file_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(1024), nullable=True)  # Local path (optional)
+    file_data: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)  # PDF binary for cloud
 
     has_text_layer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     ocr_status: Mapped[str] = mapped_column(String(32), nullable=False, default="none")  # none|queued|running|done|failed

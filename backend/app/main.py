@@ -62,23 +62,41 @@ async def upload_pdf(file: UploadFile = File(...), db: Session = Depends(get_db)
         raise HTTPException(400, "Only PDF files are supported.")
 
     safe_name = file.filename.replace("/", "_").replace("\\", "_")
-    doc_dir = os.path.join(settings.files_dir, "pdfs")
-    os.makedirs(doc_dir, exist_ok=True)
-    path = os.path.join(doc_dir, safe_name)
-
-    # Write file
     content = await file.read()
-    with open(path, "wb") as f:
-        f.write(content)
-
-    # Create doc record
-    doc = Document(title=os.path.splitext(safe_name)[0], filename=safe_name, file_path=os.path.abspath(path))
+    
+    # Check if running on Render (no disk) or local
+    is_cloud = os.getenv("RENDER") == "true"
+    
+    if is_cloud:
+        # Store PDF in database
+        doc = Document(
+            title=os.path.splitext(safe_name)[0], 
+            filename=safe_name, 
+            file_path=None,
+            file_data=content
+        )
+    else:
+        # Store PDF on disk (local development)
+        doc_dir = os.path.join(settings.files_dir, "pdfs")
+        os.makedirs(doc_dir, exist_ok=True)
+        path = os.path.join(doc_dir, safe_name)
+        with open(path, "wb") as f:
+            f.write(content)
+        doc = Document(
+            title=os.path.splitext(safe_name)[0], 
+            filename=safe_name, 
+            file_path=os.path.abspath(path),
+            file_data=None
+        )
+    
     db.add(doc)
     db.commit()
     db.refresh(doc)
 
     # Ingest synchronously (MVP). Later: background queue
-    has_text_layer, pages = extract_pages_text(doc.file_path)
+    # Use content directly for text extraction
+    import io
+    has_text_layer, pages = extract_pages_text(io.BytesIO(content))
     doc.has_text_layer = bool(has_text_layer)
     db.add(doc)
 
@@ -138,15 +156,30 @@ def delete_document(doc_id: int, db: Session = Depends(get_db)):
 
 @app.get("/files/{doc_id}")
 def get_pdf(doc_id: int, db: Session = Depends(get_db)):
+    from fastapi.responses import Response
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(404, "Document not found")
+    
     headers = {"Content-Disposition": f"inline; filename=\"{doc.filename}\""}
-    return FileResponse(
-        doc.file_path,
-        media_type="application/pdf",
-        headers=headers,
-    )
+    
+    # Check if PDF is stored in database or on disk
+    if doc.file_data:
+        # Return from database (cloud mode)
+        return Response(
+            content=doc.file_data,
+            media_type="application/pdf",
+            headers=headers,
+        )
+    elif doc.file_path and os.path.exists(doc.file_path):
+        # Return from disk (local mode)
+        return FileResponse(
+            doc.file_path,
+            media_type="application/pdf",
+            headers=headers,
+        )
+    else:
+        raise HTTPException(404, "PDF file not found")
 
 @app.post("/ask", response_model=AskResponse)
 async def ask(req: AskRequest, db: Session = Depends(get_db)):
