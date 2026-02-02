@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+// Render'da NEXT_PUBLIC_API_URL sadece hostname döner, https:// ekle
+const apiHost = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE = apiHost 
+  ? (apiHost.startsWith("http") ? apiHost : `https://${apiHost}`)
+  : (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000");
 
 type SettingsResponse = {
   chat_base_url: string;
@@ -11,8 +15,8 @@ type SettingsResponse = {
 };
 
 export default function SettingsPage() {
-  const [chatBaseUrl, setChatBaseUrl] = useState("http://localhost:11434/v1");
-  const [chatModel, setChatModel] = useState("gpt-oss-20b");
+  const [chatBaseUrl, setChatBaseUrl] = useState("https://api.groq.com/openai/v1");
+  const [chatModel, setChatModel] = useState("llama-3.3-70b-versatile");
   const [chatApiKey, setChatApiKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string>("");
@@ -70,7 +74,7 @@ export default function SettingsPage() {
           <input
             value={chatBaseUrl}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setChatBaseUrl(e.target.value)}
-            placeholder="http://localhost:11434/v1"
+            placeholder="https://api.groq.com/openai/v1"
             style={{ padding: 10, borderRadius: 8, border: "1px solid #ddd" }}
           />
         </label>

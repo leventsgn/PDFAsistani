@@ -15,13 +15,22 @@ from .llm import answer_with_citations
 
 app = FastAPI(title="TEXT-ONLY RAG Backend", version="0.1.0")
 
-# Frontend dev server access
+# CORS - Allow frontend origins
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+# Add Render frontend URL if set
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url:
+    allowed_origins.append(frontend_url)
+# Allow all origins in production (Render)
+if os.getenv("RENDER"):
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"] ,
     allow_headers=["*"],

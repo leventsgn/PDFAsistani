@@ -2,7 +2,11 @@
 import { useEffect, useRef } from "react";
 import "pdfjs-dist/web/pdf_viewer.css";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+// Render'da NEXT_PUBLIC_API_URL sadece hostname döner, https:// ekle
+const apiHost = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE = apiHost 
+  ? (apiHost.startsWith("http") ? apiHost : `https://${apiHost}`)
+  : (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000");
 
 export default function PdfjsViewer({ docId, page, highlight }: { docId: string; page: number|string; highlight?: { text: string } }) {
   const containerRef = useRef<HTMLDivElement>(null);
